@@ -24,6 +24,8 @@ This will use oc cluster to write configuration to a temporary directory. It wil
 
 ## Try it out
 
+Before trying it out make sure Keycloak is fully running. You can check this by running `token`. If it returns a bearer token it's up and running.
+
 To try things out run (this will run `oc get sa` with a token obtained from Keycloak using the simple utility `token`):
 
     ./openshift-api-try
