@@ -1,0 +1,8 @@
+#!/bin/bash
+
+export OC_PUBLIC_HOSTNAME=172.17.0.1
+export OC_SERVER_LOG_LEVEL=10
+
+#export KEYCLOAK_URL=https://secure-keycloak-myproject.$OC_PUBLIC_HOSTNAME.nip.io/auth
+export KEYCLOAK_URL=http://keycloak-myproject.$OC_PUBLIC_HOSTNAME.nip.io/auth
+
