@@ -53,7 +53,7 @@
             "displayName": "Keycloak log level",
             "description": "Keycloak log level",
             "name": "KEYCLOAK_LOGLEVEL",
-            "value": "TRACE",
+            "value": "DEBUG",
             "required": true
         },
         {
@@ -233,6 +233,16 @@
                                 ],
                                 "securityContext": {
                                     "privileged": false
+                                },
+                                "readinessProbe": {
+                                    "httpGet": {
+                                        "path": "/auth/realms/master",
+                                        "port": 8080
+                                    },
+                                    "initialDelaySeconds": 10,
+                                    "periodSeconds": 10,
+                                    "timeoutSeconds": 1,
+                                    "failureThreshold": 5 
                                 }
                             }
                         ]
