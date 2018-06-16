@@ -10,7 +10,7 @@ OC_CONFIG=`mktemp -d --suffix=.openshift-config`
 cd $GOPATH/src/github.com/openshift/origin
 export PATH="$( source hack/lib/init.sh; echo "${OS_OUTPUT_BINPATH}/$( os::build::host_platform )/" ):${PATH}"
 
-oc cluster up --base-dir=$OC_CONFIG --write-config=true --tag=latest --public-hostname 172.17.0.1 --server-loglevel=10
+oc cluster up --base-dir=$OC_CONFIG --write-config=true --tag=latest --public-hostname $OC_PUBLIC_HOSTNAME --server-loglevel=10
 
 for i in kube-apiserver openshift-apiserver openshift-controller-manager; do
     cp $DIR/webhook.yaml $OC_CONFIG/$i
