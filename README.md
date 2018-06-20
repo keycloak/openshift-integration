@@ -14,6 +14,8 @@ OpenShift 3.9 does not contain the features required to integrate with Keycloak.
 
 Before continuing you have to build OpenShift locally.
 
+Note: Some of the OpenShift build commands require BASH shell. Make sure you've switched to it before trying out any OpenShift build commands.
+
 ## Start the demo
 
 To start the demo simply run:
