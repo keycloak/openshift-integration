@@ -197,7 +197,7 @@
                         "containers": [
                             {
                                 "name": "${APPLICATION_NAME}",
-                                "image": "stianst/keycloak-openshift:openshift-integration",
+                                "image": "jboss/keycloak-openshift:nightly-openshift-integration",
                                 "ports": [
                                     {
                                         "containerPort": 8080,
