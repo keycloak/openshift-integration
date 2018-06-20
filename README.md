@@ -34,6 +34,10 @@ You should see the following:
 
     Error from server (Forbidden): serviceaccounts is forbidden: User "admin" cannot list serviceaccounts in the namespace "myproject": User "admin" cannot list serviceaccounts in project "myproject"
 
+Run the following to give access to the user:
+
+    oc adm policy add-cluster-role-to-user system:master <username>
+
 If you get an `Unauthorized` message instead something is wrong. To debug what's going on run:
 
     ./openshift-api-logs
