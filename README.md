@@ -8,11 +8,12 @@ This demo starts an OpenShift cluster configured to authenticate with Keycloak. 
 
 There is some configuration of the demo available in the `config` file.
 
-## Build OpenShift
+## OCP 3.10 client
 
-OpenShift 3.9 does not contain the features required to integrate with Keycloak. Until 3.10 is released you have to build OpenShift from source. For details on how to do that check out the [OpenShift Origin Contributors guide](https://github.com/openshift/origin/blob/master/CONTRIBUTING.adoc#develop-locally-on-your-host).
+Recently, a new version of `oc` client has been released - `3.10.0.rc0`. The `openshift-start-configured-cluster` downloads
+it automatically and stores in local `./oc` path.
 
-Before continuing you have to build OpenShift locally.
+NOTE: You still may use a different version, just put the `oc` binary into this directory.
 
 ## Start the demo
 
@@ -36,7 +37,7 @@ You should see the following:
 
 Run the following to give access to the user:
 
-    oc adm policy add-cluster-role-to-user system:master <username>
+    ./oc adm policy add-cluster-role-to-user system:master <username>
 
 If you get an `Unauthorized` message instead something is wrong. To debug what's going on run:
 
@@ -46,7 +47,7 @@ This will show the logs from the OpenShift API, there should be some information
 
 To allow the `admin` user from Keycloak to run `oc get sa` run the following:
 
-    oc --token=$(kcinit token) get sa
+    ./oc --token=$(kcinit token) get sa
 
 You should now be able to run `./openshift-api-try` and get a list of service accounts from OpenShift.
 
