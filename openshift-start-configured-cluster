@@ -90,8 +90,6 @@ oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh create clients \
     -s clientId=openshift-web-console \
     -s enabled=true \
     -s publicClient=true \
-    -s
-"redirectUris=[\"https://$OC_PUBLIC_IP:8443/console/*\",\"https://localhost:9000/*\"]"
-\
+    -s "redirectUris=[\"https://$OC_PUBLIC_IP:8443/console/*\",\"https://localhost:9000/*\"]" \
     -s baseUrl=https://$OC_PUBLIC_IP:8443/ \
     -s adminUrl=https://$OC_PUBLIC_IP:8443/
