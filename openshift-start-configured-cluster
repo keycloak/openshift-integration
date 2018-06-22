@@ -13,7 +13,13 @@ source $DIR/config
 
 OC_CONFIG=$DIR/openshift-basedir
 
-oc cluster up --base-dir=$OC_CONFIG --write-config=true --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL
+if [ ! x$TAG = x ]; then
+    OC_TAG="--tag=$TAG"
+else
+    OC_TAG=
+fi
+
+oc cluster up --base-dir=$OC_CONFIG --write-config=true --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG
 
 for i in kube-apiserver openshift-apiserver openshift-controller-manager; do
     cp webhook.yaml $OC_CONFIG/$i
@@ -28,7 +34,7 @@ for i in openshift-apiserver openshift-controller-manager; do
     sed -i 's|webhookTokenAuthenticators: null|webhookTokenAuthenticators:\n  - configFile: "webhook.yaml"|' $OC_CONFIG/$i/master-config.yaml
 done
 
-oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL
+oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG
 
 
 
@@ -43,7 +49,7 @@ for i in openshift-apiserver openshift-controller-manager; do
     sed -i '/oauthConfig:/,/policyConfig:/{//!d}' $OC_CONFIG/$i/master-config.yaml
 done
 
-oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL
+oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG
 
 echo "Startup completed"
 
