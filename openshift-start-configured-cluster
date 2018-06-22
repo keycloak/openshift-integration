@@ -1,20 +1,25 @@
 #!/bin/bash -e
 
+OC_VERSION=`oc version || true`
+if [ x$OC_VERSION = x ]; then
+    echo "Please make sure the oc binary is in the PATH"
+    exit 1
+fi
+
 DIR=`dirname $?`
 DIR=`readlink -f $DIR`
 
 source $DIR/config
 
-OC_CONFIG=`mktemp -d --suffix=.openshift-config`
+OC_CONFIG=$DIR/openshift-basedir
 
-cd $GOPATH/src/github.com/openshift/origin
-export PATH="$( source hack/lib/init.sh; echo "${OS_OUTPUT_BINPATH}/$( os::build::host_platform )/" ):${PATH}"
-
-oc cluster up --base-dir=$OC_CONFIG --write-config=true --tag=latest --public-hostname $OC_PUBLIC_HOSTNAME --server-loglevel=10
+oc cluster up --base-dir=$OC_CONFIG --write-config=true --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL
 
 for i in kube-apiserver openshift-apiserver openshift-controller-manager; do
-    cp $DIR/webhook.yaml $OC_CONFIG/$i
+    cp webhook.yaml $OC_CONFIG/$i
     sed -i "s|KEYCLOAK_URL|$KEYCLOAK_URL|" $OC_CONFIG/$i/webhook.yaml
+    cp metadata.json $OC_CONFIG/$i
+    sed -i "s|KEYCLOAK_URL|$KEYCLOAK_URL|" $OC_CONFIG/$i/metadata.json
 done
 
 sed -i 's|"webhookTokenAuthenticators":null|"webhookTokenAuthenticators":[{"configFile": "webhook.yaml"}]|' $OC_CONFIG/kube-apiserver/master-config.yaml
@@ -23,11 +28,70 @@ for i in openshift-apiserver openshift-controller-manager; do
     sed -i 's|webhookTokenAuthenticators: null|webhookTokenAuthenticators:\n  - configFile: "webhook.yaml"|' $OC_CONFIG/$i/master-config.yaml
 done
 
-oc cluster up --base-dir=$OC_CONFIG --tag=latest --public-hostname $OC_PUBLIC_HOSTNAME --server-loglevel=$OC_SERVER_LOG_LEVEL
+oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL
+
+
+
+echo "Restarting with Oauth Metadata"
+oc cluster down
+
+sed -i 's|"oauthMetadataFile":""|"oauthMetadataFile":"metadata.json"|' $OC_CONFIG/kube-apiserver/master-config.yaml
+sed -i 's|"oauthConfig":.*,"dnsConfig"|"oauthConfig":null,"dnsConfig"|' $OC_CONFIG/kube-apiserver/master-config.yaml
+for i in openshift-apiserver openshift-controller-manager; do
+    sed -i 's|oauthMetadataFile: ""|oauthMetadataFile: "metadata.json"|' $OC_CONFIG/$i/master-config.yaml
+    sed -i 's|oauthConfig:|oauthConfig: null|' $OC_CONFIG/$i/master-config.yaml
+    sed -i '/oauthConfig:/,/policyConfig:/{//!d}' $OC_CONFIG/$i/master-config.yaml
+done
+
+oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL
+
+echo "Startup completed"
 
 oc login -u system:admin
-oc project myproject
+oc project default
 
-oc new-app -f $DIR/keycloak-https.json \
--p KEYCLOAK_USER=admin \
--p KEYCLOAK_PASSWORD=admin
+# Give admin access to the project as an admin
+oc policy add-role-to-user admin admin
+
+echo "Installing Keycloak"
+
+oc adm ca create-server-cert \
+    --signer-serial=$OC_CONFIG/openshift-apiserver/ca.serial.txt \
+    --signer-cert=$OC_CONFIG/openshift-apiserver/ca.crt \
+    --signer-key=$OC_CONFIG/openshift-apiserver/ca.key \
+    --hostnames=$KEYCLOAK_HOSTNAME \
+    --cert=$OC_CONFIG/secure-keycloak.crt \
+    --key=$OC_CONFIG/secure-keycloak.key
+
+openssl x509 -in $OC_CONFIG/secure-keycloak.crt -out $OC_CONFIG/cert-only.crt
+
+X509_CERT=`cat $OC_CONFIG/cert-only.crt`
+X509_KEY=`cat $OC_CONFIG/secure-keycloak.key`
+X509_CA=`cat $OC_CONFIG/openshift-apiserver/ca.crt`
+
+oc new-app -f keycloak-https.json \
+    -p X509_CERT="$X509_CERT" \
+    -p X509_KEY="$X509_KEY" \
+    -p X509_CA="$X509_CA" \
+    -p KEYCLOAK_USER=admin \
+    -p KEYCLOAK_PASSWORD=admin
+
+sleep 10
+#get pod name
+KEYCLOAK_POD=`oc get pod -l application=keycloak -o name | sed 's/pod\///'`
+
+echo "Creating clients"
+oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh config credentials \
+    --config /tmp/.kcadm.config \
+    --server http://localhost:8080/auth --realm master \
+    --user admin --password admin
+oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh create clients \
+    --config /tmp/.kcadm.config -r master \
+    -s clientId=openshift-web-console \
+    -s enabled=true \
+    -s publicClient=true \
+    -s
+"redirectUris=[\"https://$OC_PUBLIC_IP:8443/console/*\",\"https://localhost:9000/*\"]"
+\
+    -s baseUrl=https://$OC_PUBLIC_IP:8443/ \
+    -s adminUrl=https://$OC_PUBLIC_IP:8443/
