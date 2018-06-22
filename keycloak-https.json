@@ -69,6 +69,27 @@
             "name": "HOSTNAME_HTTPS",
             "value": "",
             "required": false
+        },
+        {
+            "displayName": "Custom https Certificate",
+            "description": "Custom certificate data",
+            "name": "X509_CERT",
+            "value": "",
+            "required": true
+        },
+        {
+            "displayName": "Custom https Certificate Key",
+            "description": "Custom certificate key data",
+            "name": "X509_KEY",
+            "value": "",
+            "required": true
+        },
+        {
+            "displayName": "Custom https CA Certificate",
+            "description": "Custom CA certificate data",
+            "name": "X509_CA",
+            "value": "",
+            "required": true
         }
     ],
     "objects": [
@@ -159,7 +180,10 @@
                     "name": "${APPLICATION_NAME}"
                 },
                 "tls": {
-                    "termination": "edge"
+                    "termination": "edge",
+                    "key": "${X509_KEY}",
+                    "certificate": "${X509_CERT}",
+                    "caCertificate": "${X509_CA}"
                 }
             }
         },
@@ -242,7 +266,7 @@
                                     "initialDelaySeconds": 10,
                                     "periodSeconds": 10,
                                     "timeoutSeconds": 1,
-                                    "failureThreshold": 5 
+                                    "failureThreshold": 5
                                 }
                             }
                         ]

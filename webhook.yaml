@@ -1,17 +1,17 @@
 apiVersion: v1
-clusters:
-- name: keycloak
-  cluster:
-    server: KEYCLOAK_URL/realms/master/protocol/openshift/token/token-review
-    certificate-authority: frontproxy-ca.crt
-contexts:
-- context:
-    cluster: keycloak
-    user: api-server
-  name: keycloak
-current-context: keycloak
 kind: Config
 preferences: {}
+clusters:
+- name: keycloak-server
+  cluster:
+    certificate-authority: /etc/origin/master/ca.crt
+    server: KEYCLOAK_URL/realms/master/protocol/openshift/token/token-review
 users:
 - name: api-server
   user:
+current-context: authwebhook
+contexts:
+- context:
+    cluster: keycloak-server
+    user: api-server
+  name: authwebhook
