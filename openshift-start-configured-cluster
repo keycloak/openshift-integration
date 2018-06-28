@@ -66,13 +66,13 @@ oc adm ca create-server-cert \
     --signer-cert=$OC_CONFIG/openshift-apiserver/ca.crt \
     --signer-key=$OC_CONFIG/openshift-apiserver/ca.key \
     --hostnames=$KEYCLOAK_HOSTNAME \
-    --cert=$OC_CONFIG/secure-keycloak.crt \
-    --key=$OC_CONFIG/secure-keycloak.key
+    --cert=$OC_CONFIG/keycloak.crt \
+    --key=$OC_CONFIG/keycloak.key
 
-openssl x509 -in $OC_CONFIG/secure-keycloak.crt -out $OC_CONFIG/cert-only.crt
+openssl x509 -in $OC_CONFIG/keycloak.crt -out $OC_CONFIG/cert-only.crt
 
 X509_CERT=`cat $OC_CONFIG/cert-only.crt`
-X509_KEY=`cat $OC_CONFIG/secure-keycloak.key`
+X509_KEY=`cat $OC_CONFIG/keycloak.key`
 X509_CA=`cat $OC_CONFIG/openshift-apiserver/ca.crt`
 
 oc new-app -f keycloak-https.json \

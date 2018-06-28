@@ -3,5 +3,5 @@
 export OC_PUBLIC_IP=172.17.0.1
 export OC_SERVER_LOG_LEVEL=10
 
-export KEYCLOAK_HOSTNAME=secure-keycloak-myproject.$OC_PUBLIC_IP.nip.io
+export KEYCLOAK_HOSTNAME=keycloak-default.$OC_PUBLIC_IP.nip.io
 export KEYCLOAK_URL=https://$KEYCLOAK_HOSTNAME/auth
