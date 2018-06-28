@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 OC_VERSION=`oc version || true`
-if [ x$OC_VERSION = x ]; then
+if [ -z "$OC_VERSION" ]; then
     echo "Please make sure the oc binary is in the PATH"
     exit 1
 fi
@@ -13,10 +13,10 @@ source $DIR/config
 
 OC_CONFIG=$DIR/openshift-basedir
 
-if [ ! x$TAG = x ]; then
-    OC_TAG="--tag=$TAG"
+if [ -z "$TAG" ]; then
+    OC_TAG=""
 else
-    OC_TAG=
+    OC_TAG="--tag=$TAG"
 fi
 
 oc cluster up --base-dir=$OC_CONFIG --write-config=true --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG
@@ -82,9 +82,24 @@ oc new-app -f keycloak-https.json \
     -p KEYCLOAK_USER=admin \
     -p KEYCLOAK_PASSWORD=admin
 
-sleep 10
 #get pod name
-KEYCLOAK_POD=`oc get pod -l application=keycloak -o name | sed 's/pod\///'`
+SLEEP=5
+for i in `seq 10`; do
+    KEYCLOAK_READY=`oc get pod --no-headers=true -l application=keycloak -o custom-columns=STATUS:.status.containerStatuses[0].ready`
+    if [ "$KEYCLOAK_READY" = "true" ]; then
+        KEYCLOAK_POD=`oc get pod -l application=keycloak -o name | sed 's/pod\///'`
+        break
+    else
+        sleep $SLEEP
+        ((SLEEP+=5))
+    fi
+done
+
+if [ -z "$KEYCLOAK_POD" ]; then
+    echo "Failed to get pod, or pod never became ready"
+else
+    echo "Keycloack POD: $KEYCLOAK_POD"
+fi
 
 echo "Creating clients"
 oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh config credentials \
