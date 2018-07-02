@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 OC_VERSION=`oc version || true`
-if [ x$OC_VERSION = x ]; then
+if [ -z "$OC_VERSION" ]; then
     echo "Please make sure the oc binary is in the PATH"
     exit 1
 fi
@@ -13,11 +13,17 @@ source $DIR/config
 
 OC_CONFIG=$DIR/openshift-basedir
 
-if [ ! x$TAG = x ]; then
-    OC_TAG="--tag=$TAG"
+if [ -z "$TAG" ]; then
+    OC_TAG=""
 else
-    OC_TAG=
+    OC_TAG="--tag=$TAG"
 fi
+
+# We need to proceed with a two phase install atm.
+# oc cluster up insists on trying to log in a user to complete the install
+# phase, so we need to start once with the embedded oauth server and let it
+# successfully log in. Then we disable our oauth server, and configure the
+# whole thing.
 
 oc cluster up --base-dir=$OC_CONFIG --write-config=true --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG
 
@@ -36,6 +42,34 @@ done
 
 oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG
 
+oc login -u system:admin
+oc project default
+
+# Give admin access to the project as an admin
+oc policy add-role-to-user admin admin
+
+echo "Installing Keycloak"
+
+oc adm ca create-server-cert \
+    --signer-serial=$OC_CONFIG/openshift-apiserver/ca.serial.txt \
+    --signer-cert=$OC_CONFIG/openshift-apiserver/ca.crt \
+    --signer-key=$OC_CONFIG/openshift-apiserver/ca.key \
+    --hostnames=$KEYCLOAK_HOSTNAME \
+    --cert=$OC_CONFIG/keycloak.crt \
+    --key=$OC_CONFIG/keycloak.key
+
+openssl x509 -in $OC_CONFIG/keycloak.crt -out $OC_CONFIG/cert-only.crt
+
+X509_CERT=`cat $OC_CONFIG/cert-only.crt`
+X509_KEY=`cat $OC_CONFIG/keycloak.key`
+X509_CA=`cat $OC_CONFIG/openshift-apiserver/ca.crt`
+
+oc new-app -f keycloak-https.json \
+    -p X509_CERT="$X509_CERT" \
+    -p X509_KEY="$X509_KEY" \
+    -p X509_CA="$X509_CA" \
+    -p KEYCLOAK_USER=admin \
+    -p KEYCLOAK_PASSWORD=admin
 
 
 echo "Restarting with Oauth Metadata"
@@ -53,40 +87,27 @@ oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-log
 
 echo "Startup completed"
 
-oc login -u system:admin
-oc project default
 
-# Give admin access to the project as an admin
-oc policy add-role-to-user admin admin
-
-echo "Installing Keycloak"
-
-oc adm ca create-server-cert \
-    --signer-serial=$OC_CONFIG/openshift-apiserver/ca.serial.txt \
-    --signer-cert=$OC_CONFIG/openshift-apiserver/ca.crt \
-    --signer-key=$OC_CONFIG/openshift-apiserver/ca.key \
-    --hostnames=$KEYCLOAK_HOSTNAME \
-    --cert=$OC_CONFIG/secure-keycloak.crt \
-    --key=$OC_CONFIG/secure-keycloak.key
-
-openssl x509 -in $OC_CONFIG/secure-keycloak.crt -out $OC_CONFIG/cert-only.crt
-
-X509_CERT=`cat $OC_CONFIG/cert-only.crt`
-X509_KEY=`cat $OC_CONFIG/secure-keycloak.key`
-X509_CA=`cat $OC_CONFIG/openshift-apiserver/ca.crt`
-
-oc new-app -f keycloak-https.json \
-    -p X509_CERT="$X509_CERT" \
-    -p X509_KEY="$X509_KEY" \
-    -p X509_CA="$X509_CA" \
-    -p KEYCLOAK_USER=admin \
-    -p KEYCLOAK_PASSWORD=admin
-
-sleep 10
 #get pod name
-KEYCLOAK_POD=`oc get pod -l application=keycloak -o name | sed 's/pod\///'`
+SLEEP=5
+for i in `seq 10`; do
+    KEYCLOAK_READY=`oc get pod --no-headers=true -l application=keycloak -o custom-columns=STATUS:.status.containerStatuses[0].ready`
+    if [ "$KEYCLOAK_READY" = "true" ]; then
+        KEYCLOAK_POD=`oc get pod -l application=keycloak -o name | sed 's/pod\///'`
+        break
+    else
+        sleep $SLEEP
+        ((SLEEP+=5))
+    fi
+done
 
-echo "Creating clients"
+if [ -z "$KEYCLOAK_POD" ]; then
+    echo "Failed to get pod, or pod never became ready"
+else
+    echo "Keycloack POD: $KEYCLOAK_POD"
+fi
+
+echo "Creating keycloak oauth clients"
 oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh config credentials \
     --config /tmp/.kcadm.config \
     --server http://localhost:8080/auth --realm master \
