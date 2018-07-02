@@ -19,6 +19,12 @@ else
     OC_TAG="--tag=$TAG"
 fi
 
+# We need to proceed with a two phase install atm.
+# oc cluster up insists on trying to log in a user to complete the install
+# phase, so we need to start once with the embedded oauth server and let it
+# successfully log in. Then we disable our oauth server, and configure the
+# whole thing.
+
 oc cluster up --base-dir=$OC_CONFIG --write-config=true --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG
 
 for i in kube-apiserver openshift-apiserver openshift-controller-manager; do
@@ -35,23 +41,6 @@ for i in openshift-apiserver openshift-controller-manager; do
 done
 
 oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG
-
-
-
-echo "Restarting with Oauth Metadata"
-oc cluster down
-
-sed -i 's|"oauthMetadataFile":""|"oauthMetadataFile":"metadata.json"|' $OC_CONFIG/kube-apiserver/master-config.yaml
-sed -i 's|"oauthConfig":.*,"dnsConfig"|"oauthConfig":null,"dnsConfig"|' $OC_CONFIG/kube-apiserver/master-config.yaml
-for i in openshift-apiserver openshift-controller-manager; do
-    sed -i 's|oauthMetadataFile: ""|oauthMetadataFile: "metadata.json"|' $OC_CONFIG/$i/master-config.yaml
-    sed -i 's|oauthConfig:|oauthConfig: null|' $OC_CONFIG/$i/master-config.yaml
-    sed -i '/oauthConfig:/,/policyConfig:/{//!d}' $OC_CONFIG/$i/master-config.yaml
-done
-
-oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG
-
-echo "Startup completed"
 
 oc login -u system:admin
 oc project default
@@ -82,6 +71,23 @@ oc new-app -f keycloak-https.json \
     -p KEYCLOAK_USER=admin \
     -p KEYCLOAK_PASSWORD=admin
 
+
+echo "Restarting with Oauth Metadata"
+oc cluster down
+
+sed -i 's|"oauthMetadataFile":""|"oauthMetadataFile":"metadata.json"|' $OC_CONFIG/kube-apiserver/master-config.yaml
+sed -i 's|"oauthConfig":.*,"dnsConfig"|"oauthConfig":null,"dnsConfig"|' $OC_CONFIG/kube-apiserver/master-config.yaml
+for i in openshift-apiserver openshift-controller-manager; do
+    sed -i 's|oauthMetadataFile: ""|oauthMetadataFile: "metadata.json"|' $OC_CONFIG/$i/master-config.yaml
+    sed -i 's|oauthConfig:|oauthConfig: null|' $OC_CONFIG/$i/master-config.yaml
+    sed -i '/oauthConfig:/,/policyConfig:/{//!d}' $OC_CONFIG/$i/master-config.yaml
+done
+
+oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG
+
+echo "Startup completed"
+
+
 #get pod name
 SLEEP=5
 for i in `seq 10`; do
@@ -101,7 +107,7 @@ else
     echo "Keycloack POD: $KEYCLOAK_POD"
 fi
 
-echo "Creating clients"
+echo "Creating keycloak oauth clients"
 oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh config credentials \
     --config /tmp/.kcadm.config \
     --server http://localhost:8080/auth --realm master \
