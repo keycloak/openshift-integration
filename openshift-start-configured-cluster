@@ -29,7 +29,7 @@ oc cluster up --base-dir=$OC_CONFIG --write-config=true --public-hostname $OC_PU
 
 for i in kube-apiserver openshift-apiserver openshift-controller-manager; do
     cp webhook.yaml $OC_CONFIG/$i
-    sed -i "s|KEYCLOAK_URL|$KEYCLOAK_URL|" $OC_CONFIG/$i/webhook.yaml
+    sed -i "s|KEYCLOAK_URL|$KC_SVC_URL|" $OC_CONFIG/$i/webhook.yaml
     cp metadata.json $OC_CONFIG/$i
     sed -i "s|KEYCLOAK_URL|$KEYCLOAK_URL|" $OC_CONFIG/$i/metadata.json
 done
