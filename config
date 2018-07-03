@@ -3,5 +3,11 @@
 export OC_PUBLIC_IP=172.17.0.1
 export OC_SERVER_LOG_LEVEL=10
 
-export KEYCLOAK_HOSTNAME=keycloak-default.$OC_PUBLIC_IP.nip.io
+# Service Internal Access
+export KC_SVCNAME=keycloak
+export KC_NAMESPACE=default
+export KC_SVC_URL=http://$KC_SVCNAME.$KC_NAMESPACE.svc.cluster.local:8080/auth
+
+# Public access
+export KEYCLOAK_HOSTNAME=$KC_SVCNAME-$KC_NAMESPACE.$OC_PUBLIC_IP.nip.io
 export KEYCLOAK_URL=https://$KEYCLOAK_HOSTNAME/auth
