@@ -12,6 +12,9 @@ DIR=`readlink -f $DIR`
 source $DIR/config
 
 OC_CONFIG=$DIR/openshift-basedir
+if [ -d "$OC_CONFIG" ]; then
+  ./cleanup
+fi
 
 if [ -z "$TAG" ]; then
     OC_TAG=""
@@ -120,3 +123,8 @@ oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh create clients \
     -s "redirectUris=[\"https://$OC_PUBLIC_IP:8443/console/*\",\"https://localhost:9000/*\"]" \
     -s baseUrl=https://$OC_PUBLIC_IP:8443/ \
     -s adminUrl=https://$OC_PUBLIC_IP:8443/
+echo "Setting expiration of Access Tokens to 1 day"
+oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh update realms/master \
+    --config /tmp/.kcadm.config -r master \
+    -s accessTokenLifespanForImplicitFlow=86400 \
+    -s accessTokenLifespan=86400
