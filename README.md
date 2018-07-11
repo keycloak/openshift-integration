@@ -8,11 +8,11 @@ This demo starts an OpenShift cluster configured to authenticate with Keycloak. 
 
 There is some configuration of the demo available in the `config` file.
 
-## Build OpenShift
+## Obtain OpenShift CLI OC client v3.10
 
-OpenShift 3.9 does not contain the features required to integrate with Keycloak. Until 3.10 is released you have to build OpenShift from source. For details on how to do that check out the [OpenShift Origin Contributors guide](https://github.com/openshift/origin/blob/master/CONTRIBUTING.adoc#develop-locally-on-your-host).
+OpenShift 3.9 does not contain the features required to integrate with Keycloak. Download most recent OC CLI binary release from here:
 
-Before continuing you have to build OpenShift locally.
+https://github.com/openshift/origin/tags
 
 ## Start the demo
 
