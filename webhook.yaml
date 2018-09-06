@@ -5,7 +5,7 @@ clusters:
 - name: keycloak-server
   cluster:
     certificate-authority: /etc/origin/master/ca.crt
-    server: KEYCLOAK_URL/realms/master/protocol/openshift/token/token-review
+    server: KEYCLOAK_URL/realms/master/protocol/openid-connect/ext/openshift-token-review
 users:
 - name: api-server
   user:
