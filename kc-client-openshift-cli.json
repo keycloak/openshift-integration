@@ -1,0 +1,21 @@
+{
+    "clientId": "openshift-cli",
+    "enabled": "true",
+    "publicClient": "true",
+    "standardFlowEnabled": "true",
+    "directAccessGrantsEnabled": "true",
+    "implicitFlowEnabled": "true",
+    "defaultClientScopes": [],
+    "optionalClientScopes": [],
+    "protocolMappers": [{
+        "name":"username",
+        "protocol":"openid-connect",
+        "protocolMapper":"oidc-usermodel-property-mapper",
+        "config":{
+            "user.attribute":"username",
+            "access.token.claim":"true",
+            "claim.name":"preferred_username",
+            "jsonType.label":"String"
+        }
+    }]
+}

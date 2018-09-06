@@ -5,3 +5,17 @@ export OC_SERVER_LOG_LEVEL=10
 
 export KEYCLOAK_HOSTNAME=keycloak-default.$OC_PUBLIC_IP.nip.io
 export KEYCLOAK_URL=https://$KEYCLOAK_HOSTNAME/auth
+
+if ( ! which oc &>/dev/null ); then
+    echo "Please make sure the oc binary is in the PATH"
+    exit 1
+fi
+
+if [ -z "$TAG" ]; then
+    export OC_TAG=""
+else
+    export OC_TAG="--tag=$TAG"
+fi
+
+export DIR=`dirname $? | xargs readlink -f`
+export OC_CONFIG=$DIR/openshift-basedir

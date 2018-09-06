@@ -1,0 +1,45 @@
+#!/bin/bash -e
+
+source `dirname $? | xargs readlink -f`/config
+
+echo "Stopping oc cluster"
+
+oc cluster down
+
+echo "Re-configure"
+
+echo "Generating Keycloak client cert"
+# This need to happen before the oc cluster
+openssl genrsa -out $OC_CONFIG/openshift-apiserver/keycloak-client.key 2048
+openssl req -new -key $OC_CONFIG/openshift-apiserver/keycloak-client.key -out $OC_CONFIG/openshift-apiserver/keycloak-client.csr -subj "/CN=api.keycloak.localhost"
+openssl x509 -req -in $OC_CONFIG/openshift-apiserver/keycloak-client.csr -CA $OC_CONFIG/openshift-apiserver/ca.crt -CAkey $OC_CONFIG/openshift-apiserver/ca.key -CAcreateserial -out $OC_CONFIG/openshift-apiserver/keycloak-client.crt -days 1024 -sha256
+rm -rf $OC_CONFIG/openshift-apiserver/keycloak-client.csr
+cp $OC_CONFIG/openshift-apiserver/keycloak-client.crt $OC_CONFIG/kube-apiserver
+cp $OC_CONFIG/openshift-apiserver/keycloak-client.crt $OC_CONFIG/openshift-controller-manager
+cp $OC_CONFIG/openshift-apiserver/keycloak-client.key $OC_CONFIG/kube-apiserver
+cp $OC_CONFIG/openshift-apiserver/keycloak-client.key $OC_CONFIG/openshift-controller-manager
+
+for i in kube-apiserver openshift-apiserver openshift-controller-manager; do
+    cp webhook.yaml $OC_CONFIG/$i
+    sed -i "s|KEYCLOAK_URL|$KEYCLOAK_URL|" $OC_CONFIG/$i/webhook.yaml
+    cp metadata.json $OC_CONFIG/$i
+    sed -i "s|KEYCLOAK_URL|$KEYCLOAK_URL|" $OC_CONFIG/$i/metadata.json
+done
+
+sed -i 's|"webhookTokenAuthenticators":null|"webhookTokenAuthenticators":[{"configFile": "webhook.yaml"}]|' $OC_CONFIG/kube-apiserver/master-config.yaml
+
+for i in openshift-apiserver openshift-controller-manager; do
+    sed -i 's|webhookTokenAuthenticators: null|webhookTokenAuthenticators:\n  - configFile: "webhook.yaml"|' $OC_CONFIG/$i/master-config.yaml
+done
+
+sed -i 's|"oauthMetadataFile":""|"oauthMetadataFile":"metadata.json"|' $OC_CONFIG/kube-apiserver/master-config.yaml
+sed -i 's|"oauthConfig":.*,"dnsConfig"|"oauthConfig":null,"dnsConfig"|' $OC_CONFIG/kube-apiserver/master-config.yaml
+for i in openshift-apiserver openshift-controller-manager; do
+    sed -i 's|oauthMetadataFile: ""|oauthMetadataFile: "metadata.json"|' $OC_CONFIG/$i/master-config.yaml
+    sed -i 's|oauthConfig:|oauthConfig: null|' $OC_CONFIG/$i/master-config.yaml
+    sed -i '/oauthConfig:/,/policyConfig:/{//!d}' $OC_CONFIG/$i/master-config.yaml
+done
+
+echo "Starting oc cluster"
+
+oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG

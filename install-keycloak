@@ -1,0 +1,50 @@
+#!/bin/bash -e
+
+source `dirname $? | xargs readlink -f`/config
+
+oc login -u system:admin
+oc project default
+
+
+echo "Installing Keycloak"
+
+oc adm ca create-server-cert \
+    --signer-serial=$OC_CONFIG/openshift-apiserver/ca.serial.txt \
+    --signer-cert=$OC_CONFIG/openshift-apiserver/ca.crt \
+    --signer-key=$OC_CONFIG/openshift-apiserver/ca.key \
+    --hostnames=$KEYCLOAK_HOSTNAME \
+    --cert=$OC_CONFIG/keycloak.crt \
+    --key=$OC_CONFIG/keycloak.key
+
+openssl x509 -in $OC_CONFIG/keycloak.crt -out $OC_CONFIG/cert-only.crt
+
+oc create secret tls keycloak-server-tls --cert=$OC_CONFIG/cert-only.crt --key=$OC_CONFIG/keycloak.key
+oc create secret generic keycloak-client-tls --from-file=tls.crt=$OC_CONFIG/kube-apiserver/ca-bundle.crt
+
+oc new-app -f keycloak-https.json \
+    -p KEYCLOAK_USER=admin \
+    -p KEYCLOAK_PASSWORD=admin
+
+oc volume dc/keycloak --add --name keycloak-data --claim-size=1G --overwrite
+
+echo "Waiting for Keycloak to start"
+
+#get pod name
+SLEEP=5
+for i in `seq 10`; do
+    KEYCLOAK_READY=`oc get pod --no-headers=true -l application=keycloak -o custom-columns=STATUS:.status.containerStatuses[0].ready`
+    if [ "$KEYCLOAK_READY" = "true" ]; then
+        KEYCLOAK_POD=`oc get pod -l application=keycloak -o name | sed 's/pod\///'`
+        break
+    else
+        sleep $SLEEP
+        ((SLEEP+=5))
+    fi
+done
+
+if [ -z "$KEYCLOAK_POD" ]; then
+    echo "Failed to get pod, or pod never became ready"
+    exit 1
+else
+    echo "Keycloack POD: $KEYCLOAK_POD"
+fi
