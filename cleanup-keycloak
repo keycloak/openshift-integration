@@ -1,0 +1,11 @@
+#!/bin/bash
+
+source `dirname $? | xargs readlink -f`/config
+
+oc login -u system:admin
+oc project default
+
+oc delete -l application=keycloak all
+oc delete secrets keycloak-client-tls keycloak-server-tls
+oc delete pv keycloak-data
+oc delete pvc keycloak-data

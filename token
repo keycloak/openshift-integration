@@ -5,6 +5,6 @@ DIR=`readlink -f $DIR`
 
 source $DIR/config
 
-ACCESS_TOKEN=`curl -k -s --data "client_id=admin-cli&username=admin&password=admin&grant_type=password" $KEYCLOAK_URL/realms/master/protocol/openid-connect/token | jq -r '.access_token'`
+ACCESS_TOKEN=`curl -k -s --data "client_id=openshift-cli&username=admin&password=admin&grant_type=password" $KEYCLOAK_URL/realms/master/protocol/openid-connect/token | jq -r '.access_token'`
 
 echo $ACCESS_TOKEN

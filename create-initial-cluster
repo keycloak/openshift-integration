@@ -1,0 +1,22 @@
+#!/bin/bash -e
+
+source `dirname $? | xargs readlink -f`/config
+
+if [ -d "$OC_CONFIG" ]; then
+    echo "Previous cluster config exists, cleaning"
+    ./cleanup
+fi
+
+echo "Creating oc config"
+
+oc cluster up --base-dir=$OC_CONFIG --write-config=true --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG
+
+echo "Starting oc cluster"
+
+oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG
+
+oc login -u system:admin
+oc project default
+
+# Give admin access to the project as an admin
+oc policy add-role-to-user admin admin

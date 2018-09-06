@@ -1,0 +1,11 @@
+#!/bin/bash -e
+
+source `dirname $? | xargs readlink -f`/config
+
+echo "Stopping oc cluster"
+
+oc cluster down
+
+echo "Starting oc cluster"
+
+oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG

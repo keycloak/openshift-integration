@@ -73,6 +73,21 @@
     ],
     "objects": [
         {
+            "apiVersion": "v1",
+            "kind": "PersistentVolumeClaim",
+            "metadata": {
+                "name": "keycloak-data"
+            },
+            "spec": {
+                "accessModes": [ "ReadWriteOnce" ],
+                "resources": {
+                    "requests": {
+                        "storage": "1Gi"
+                    }
+                }
+            }
+        },
+        {
             "kind": "Service",
             "apiVersion": "v1",
             "spec": {
@@ -154,6 +169,7 @@
                             {
                                 "name": "${APPLICATION_NAME}",
                                 "image": "jboss/keycloak:nightly-openshift-integration2",
+                                "imagePullPolicy": "Always",
                                 "args": ["-Djavax.net.debug=ssl:handshake:verbose", "-b", "0.0.0.0", "--debug"],
                                 "ports": [
                                     {
@@ -207,6 +223,10 @@
                                 },
                                 "volumeMounts": [
                                     {
+                                        "name": "keycloak-data",
+                                        "mountPath": "/opt/jboss/keycloak/standalone/data",
+                                        "readOnly": false
+                                    }, {
                                         "name": "keycloak-server-tls-volume",
                                         "mountPath": "/etc/x509/https",
                                         "readOnly": true
@@ -230,6 +250,12 @@
                                 "name": "keycloak-client-tls-volume",
                                 "secret": {
                                     "secretName": "keycloak-client-tls"
+                                }
+                            },
+                            {
+                                "name": "keycloak-data",
+                                "persistentVolumeClaim": {
+                                    "claimName": "keycloak-data"
                                 }
                             }
                         ]

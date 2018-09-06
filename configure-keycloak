@@ -1,0 +1,77 @@
+#!/bin/bash -e
+
+source `dirname $? | xargs readlink -f`/config
+
+oc login -u system:admin
+oc project default
+
+
+echo "Waiting for Keycloak to start"
+
+#get pod name
+SLEEP=5
+for i in `seq 10`; do
+    KEYCLOAK_READY=`oc get pod --no-headers=true -l application=keycloak -o custom-columns=STATUS:.status.containerStatuses[0].ready`
+    if [ "$KEYCLOAK_READY" = "true" ]; then
+        KEYCLOAK_POD=`oc get pod -l application=keycloak -o name | sed 's/pod\///'`
+        break
+    else
+        sleep $SLEEP
+        ((SLEEP+=5))
+    fi
+done
+
+if [ -z "$KEYCLOAK_POD" ]; then
+    echo "Failed to get pod, or pod never became ready"
+    exit 1
+else
+    echo "Keycloack POD: $KEYCLOAK_POD"
+fi
+
+echo "Configuring Keycloak"
+
+oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh config credentials \
+    --config /tmp/.kcadm.config \
+    --server http://localhost:8080/auth --realm master \
+    --user admin --password admin
+
+echo "Creating clients"
+
+echo "Creating web console client"
+cat $DIR/kc-client-openshift-web-console.json | oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh create clients \
+    --config /tmp/.kcadm.config \
+    -f -\
+    -s "redirectUris=[\"https://$OC_PUBLIC_IP:8443/console/*\",\"https://localhost:9000/*\"]" \
+    -s baseUrl=https://$OC_PUBLIC_IP:8443/ \
+    -s adminUrl=https://$OC_PUBLIC_IP:8443/
+
+echo "Creating temporary token client"
+cat $DIR/kc-client-openshift-cli.json | oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh create clients \
+    --config /tmp/.kcadm.config \
+    -f -
+
+echo "Creating oc client"
+
+FLOW_ID=$(oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh get realms/master/authentication/flows --config /tmp/.kcadm.config -r master | jq -c '.[] | select(.alias | contains("http challenge")) | .id' | sed 's/"//g')
+
+cat $DIR/kc-client-openshift-challenging-client.json | oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh create clients \
+    --config /tmp/.kcadm.config \
+    -s "authenticationFlowBindingOverrides={\"browser\": \"$FLOW_ID\"}"\
+    -s "redirectUris=[\"$KEYCLOAK_URL/realms/master/oauth/token/implicit\"]" \
+    -f -
+
+echo "Creating token review client"
+oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh create clients \
+    --config /tmp/.kcadm.config -r master \
+    -s clientId=token-review \
+    -s enabled=true \
+    -s publicClient=false \
+    -s "redirectUris=[\"*\"]" \
+    -s "attributes={\"x509.subjectdn\": \"CN=api.keycloak.localhost\"}" \
+    -s clientAuthenticatorType=client-x509
+
+echo "Setting expiration of Access Tokens to 1 day"
+oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh update realms/master \
+    --config /tmp/.kcadm.config -r master \
+    -s accessTokenLifespanForImplicitFlow=86400 \
+    -s accessTokenLifespan=86400
