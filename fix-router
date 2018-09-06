@@ -1,0 +1,2 @@
+oc delete rc router-1 && oc delete pod `oc get pods | grep router | grep -v deploy | cut -d' ' -f1` --force --grace-period=0 && sleep 10 && oc rollout latest dc/router         
+

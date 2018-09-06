@@ -43,6 +43,17 @@ for i in openshift-apiserver openshift-controller-manager; do
     sed -i 's|webhookTokenAuthenticators: null|webhookTokenAuthenticators:\n  - configFile: "webhook.yaml"|' $OC_CONFIG/$i/master-config.yaml
 done
 
+echo "Generating Keycloak client cert"
+# This need to happen before the oc cluster
+openssl genrsa -out $OC_CONFIG/openshift-apiserver/keycloak-client.key 2048
+openssl req -new -key $OC_CONFIG/openshift-apiserver/keycloak-client.key -out $OC_CONFIG/openshift-apiserver/keycloak-client.csr -subj "/CN=api.keycloak.localhost"
+openssl x509 -req -in $OC_CONFIG/openshift-apiserver/keycloak-client.csr -CA $OC_CONFIG/openshift-apiserver/ca.crt -CAkey $OC_CONFIG/openshift-apiserver/ca.key -CAcreateserial -out $OC_CONFIG/openshift-apiserver/keycloak-client.crt -days 1024 -sha256
+rm -rf $OC_CONFIG/openshift-apiserver/keycloak-client.csr
+cp $OC_CONFIG/openshift-apiserver/keycloak-client.crt $OC_CONFIG/kube-apiserver
+cp $OC_CONFIG/openshift-apiserver/keycloak-client.crt $OC_CONFIG/openshift-controller-manager
+cp $OC_CONFIG/openshift-apiserver/keycloak-client.key $OC_CONFIG/kube-apiserver
+cp $OC_CONFIG/openshift-apiserver/keycloak-client.key $OC_CONFIG/openshift-controller-manager
+
 oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG
 
 oc login -u system:admin
@@ -63,17 +74,12 @@ oc adm ca create-server-cert \
 
 openssl x509 -in $OC_CONFIG/keycloak.crt -out $OC_CONFIG/cert-only.crt
 
-X509_CERT=`cat $OC_CONFIG/cert-only.crt`
-X509_KEY=`cat $OC_CONFIG/keycloak.key`
-X509_CA=`cat $OC_CONFIG/openshift-apiserver/ca.crt`
+oc create secret tls keycloak-server-tls --cert=$OC_CONFIG/cert-only.crt --key=$OC_CONFIG/keycloak.key
+oc create secret generic keycloak-client-tls --from-file=tls.crt=$OC_CONFIG/kube-apiserver/ca-bundle.crt
 
 oc new-app -f keycloak-https.json \
-    -p X509_CERT="$X509_CERT" \
-    -p X509_KEY="$X509_KEY" \
-    -p X509_CA="$X509_CA" \
     -p KEYCLOAK_USER=admin \
     -p KEYCLOAK_PASSWORD=admin
-
 
 echo "Restarting with Oauth Metadata"
 oc cluster down
@@ -89,7 +95,6 @@ done
 oc cluster up --base-dir=$OC_CONFIG --public-hostname $OC_PUBLIC_IP --server-loglevel=$OC_SERVER_LOG_LEVEL $OC_TAG
 
 echo "Startup completed"
-
 
 #get pod name
 SLEEP=5
@@ -128,3 +133,12 @@ oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh update realms/master \
     --config /tmp/.kcadm.config -r master \
     -s accessTokenLifespanForImplicitFlow=86400 \
     -s accessTokenLifespan=86400
+echo "Creating token review client"
+oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh create clients \
+    --config /tmp/.kcadm.config -r master \
+    -s clientId=token-review \
+    -s enabled=true \
+    -s publicClient=false \
+    -s "redirectUris=[\"*\"]" \
+    -s "attributes={\"x509.subjectdn\": \"CN=api.keycloak.localhost\"}" \
+    -s clientAuthenticatorType=client-x509

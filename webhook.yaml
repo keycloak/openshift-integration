@@ -5,10 +5,12 @@ clusters:
 - name: keycloak-server
   cluster:
     certificate-authority: /etc/origin/master/ca.crt
-    server: KEYCLOAK_URL/realms/master/protocol/openid-connect/ext/openshift-token-review
+    server: KEYCLOAK_URL/realms/master/protocol/openid-connect/ext/openshift-token-review/token-review
 users:
 - name: api-server
   user:
+    client-certificate: /etc/origin/master/keycloak-client.crt
+    client-key: /etc/origin/master/keycloak-client.key
 current-context: authwebhook
 contexts:
 - context:

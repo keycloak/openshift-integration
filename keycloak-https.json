@@ -69,27 +69,6 @@
             "name": "HOSTNAME_HTTPS",
             "value": "",
             "required": false
-        },
-        {
-            "displayName": "Custom https Certificate",
-            "description": "Custom certificate data",
-            "name": "X509_CERT",
-            "value": "",
-            "required": true
-        },
-        {
-            "displayName": "Custom https Certificate Key",
-            "description": "Custom certificate key data",
-            "name": "X509_KEY",
-            "value": "",
-            "required": true
-        },
-        {
-            "displayName": "Custom https CA Certificate",
-            "description": "Custom CA certificate data",
-            "name": "X509_CA",
-            "value": "",
-            "required": true
         }
     ],
     "objects": [
@@ -99,8 +78,8 @@
             "spec": {
                 "ports": [
                     {
-                        "port": 8080,
-                        "targetPort": 8080
+                        "port": 8443,
+                        "targetPort": 8443
                     }
                 ],
                 "selector": {
@@ -136,10 +115,7 @@
                     "name": "${APPLICATION_NAME}"
                 },
                 "tls": {
-                    "termination": "edge",
-                    "key": "${X509_KEY}",
-                    "certificate": "${X509_CERT}",
-                    "caCertificate": "${X509_CA}"
+                    "termination": "passthrough"
                 }
             }
         },
@@ -178,6 +154,7 @@
                             {
                                 "name": "${APPLICATION_NAME}",
                                 "image": "jboss/keycloak:nightly-openshift-integration2",
+                                "args": ["-Djavax.net.debug=ssl:handshake:verbose", "-b", "0.0.0.0", "--debug"],
                                 "ports": [
                                     {
                                         "containerPort": 8080,
@@ -209,6 +186,10 @@
                                     {
                                         "name": "KEYCLOAK_LOGLEVEL",
                                         "value": "${KEYCLOAK_LOGLEVEL}"
+                                    },
+                                    {
+                                        "name": "X509_CA_BUNDLE",
+                                        "value": "/etc/x509/client/tls.crt"
                                     }
                                 ],
                                 "securityContext": {
@@ -223,6 +204,32 @@
                                     "periodSeconds": 10,
                                     "timeoutSeconds": 1,
                                     "failureThreshold": 5
+                                },
+                                "volumeMounts": [
+                                    {
+                                        "name": "keycloak-server-tls-volume",
+                                        "mountPath": "/etc/x509/https",
+                                        "readOnly": true
+                                    },
+                                    {
+                                        "name": "keycloak-client-tls-volume",
+                                        "mountPath": "/etc/x509/client",
+                                        "readOnly": true
+                                    }
+                                ]
+                            }
+                        ],
+                        "volumes": [
+                            {
+                                "name": "keycloak-server-tls-volume",
+                                "secret": {
+                                    "secretName": "keycloak-server-tls"
+                                }
+                            },
+                            {
+                                "name": "keycloak-client-tls-volume",
+                                "secret": {
+                                    "secretName": "keycloak-client-tls"
                                 }
                             }
                         ]
