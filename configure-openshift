@@ -9,17 +9,17 @@ oc cluster down
 echo "Re-configure"
 
 echo "Generating Keycloak client cert"
-# This need to happen before the oc cluster
-openssl genrsa -out $OC_CONFIG/openshift-apiserver/keycloak-client.key 2048
-openssl req -new -key $OC_CONFIG/openshift-apiserver/keycloak-client.key -out $OC_CONFIG/openshift-apiserver/keycloak-client.csr -subj "/CN=api.keycloak.localhost"
-openssl x509 -req -in $OC_CONFIG/openshift-apiserver/keycloak-client.csr -CA $OC_CONFIG/openshift-apiserver/ca.crt -CAkey $OC_CONFIG/openshift-apiserver/ca.key -CAcreateserial -out $OC_CONFIG/openshift-apiserver/keycloak-client.crt -days 1024 -sha256
-rm -rf $OC_CONFIG/openshift-apiserver/keycloak-client.csr
-cp $OC_CONFIG/openshift-apiserver/keycloak-client.crt $OC_CONFIG/kube-apiserver
-cp $OC_CONFIG/openshift-apiserver/keycloak-client.crt $OC_CONFIG/openshift-controller-manager
-cp $OC_CONFIG/openshift-apiserver/keycloak-client.key $OC_CONFIG/kube-apiserver
-cp $OC_CONFIG/openshift-apiserver/keycloak-client.key $OC_CONFIG/openshift-controller-manager
+oc adm create-api-client-config \
+  --certificate-authority=$OC_CONFIG/openshift-apiserver/ca.crt \
+  --client-dir=$OC_CONFIG/keycloak-client \
+  --signer-cert=$OC_CONFIG/openshift-apiserver/ca.crt \
+  --signer-key=$OC_CONFIG/openshift-apiserver/ca.key \
+  --signer-serial=$OC_CONFIG/openshift-apiserver/ca.serial.txt \
+  --user=keycloak-client
 
 for i in kube-apiserver openshift-apiserver openshift-controller-manager; do
+    cp $OC_CONFIG/keycloak-client/keycloak-client.crt $OC_CONFIG/$i
+    cp $OC_CONFIG/keycloak-client/keycloak-client.key $OC_CONFIG/$i
     cp webhook.yaml $OC_CONFIG/$i
     sed -i "s|KEYCLOAK_URL|$KEYCLOAK_URL|" $OC_CONFIG/$i/webhook.yaml
     cp metadata.json $OC_CONFIG/$i
