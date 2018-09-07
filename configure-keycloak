@@ -67,7 +67,7 @@ oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh create clients \
     -s enabled=true \
     -s publicClient=false \
     -s "redirectUris=[\"*\"]" \
-    -s "attributes={\"x509.subjectdn\": \"CN=api.keycloak.localhost\"}" \
+    -s "attributes={\"x509.subjectdn\": \"CN=keycloak-client\"}" \
     -s clientAuthenticatorType=client-x509
 
 echo "Setting expiration of Access Tokens to 1 day"
