@@ -4,6 +4,10 @@
     "publicClient": "true",
     "defaultClientScopes": [],
     "optionalClientScopes": [],
+    "attributes": {
+        "access.token.signed.response.alg": "HS256",
+        "access.token.lifespan": "-1"
+    },
     "protocolMappers": [{
         "name":"username",
         "protocol":"openid-connect",

@@ -69,9 +69,3 @@ oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh create clients \
     -s "redirectUris=[\"*\"]" \
     -s "attributes={\"x509.subjectdn\": \"CN=keycloak-client\"}" \
     -s clientAuthenticatorType=client-x509
-
-echo "Setting expiration of Access Tokens to 1 day"
-oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh update realms/master \
-    --config /tmp/.kcadm.config -r master \
-    -s accessTokenLifespanForImplicitFlow=86400 \
-    -s accessTokenLifespan=86400
