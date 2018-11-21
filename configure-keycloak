@@ -69,3 +69,7 @@ oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh create clients \
     -s "redirectUris=[\"*\"]" \
     -s "attributes={\"x509.subjectdn\": \"CN=keycloak-client\"}" \
     -s clientAuthenticatorType=client-x509
+
+echo "Creating Openshift Client Storage"
+oc login --username=admin --password=admin
+cat kc-client-openshift-storage.json | sed "s/_access_token/$(oc whoami -t)/g" | sed "s/_openshift_public_uri/https:\/\/$OC_PUBLIC_IP:8443/g" | oc rsh $KEYCLOAK_POD ./keycloak/bin/kcadm.sh create components --config /tmp/.kcadm.config -f -

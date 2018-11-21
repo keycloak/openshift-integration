@@ -1,0 +1,19 @@
+{
+    "name":"openshift-oauth-client-storage",
+    "providerId":"openshift-oauth-client",
+    "providerType":"org.keycloak.storage.client.ClientStorageProvider",
+    "parentId":"master",
+    "config": {
+        "openshift.uri": ["_openshift_public_uri"],
+        "user.consent.require":["true"],
+        "openshift.access_token":["_access_token"],
+        "cachePolicy":["NO_CACHE"],
+        "priority":["0"],
+        "enabled":["true"],
+        "evictionDay":[],
+        "evictionHour":[],
+        "evictionMinute":[],
+        "maxLifespan":[],
+        "default_namespace":[]
+    }
+}
