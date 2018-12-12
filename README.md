@@ -51,6 +51,13 @@ To allow the `admin` user from Keycloak to run `oc get sa` run the following:
 
 You should now be able to run `./openshift-api-try` and get a list of service accounts from OpenShift.
 
+## Using Openshift oauth-proxy to authenticate using Keycloak
+
+An example is in `examples/oauthproxy.yaml` that creates a deployment in your cluster using oauthproxy as a side car that intercepts requests to a pod in order
+to authenticate users using Keycloak:
+
+    oc create -f examples/oauthproxy.yaml
+
 ## Notes
 
 * The demo is currently not working with secure routes. Currently if using secured routes for Keycloak the OpenShift API complains about the certificate not being valid. Keycloak is using edge termination and the certificate should be signed by the default OpenShift CA, but this is still not valid.
